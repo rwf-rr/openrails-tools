@@ -4,8 +4,31 @@ Created for my own use, and made available (without any guarantees) here.
 
 ### Summary
 
+- **ORTS-ShowRollingStockFile.py**
+  Show an engine or wagon file in UTF-8, with all includes expanded.
+
 -  **ORTS-RollingStockScanner.py**
    Find engines and wagons, and list important attributes in CSV format.
+
+### ORTS-ShowRollingStockFile.py
+Python script to show an engine or wagon file. 
+Includes are expanded to create a complete file.
+The output is in UTF-8 - OpenRails accepts UTF-8 files (MSTS uses UTF-16).
+
+```
+>py ORTS-ShowRollingStockFile.py -h
+usage: ORTS-ShowRollingStockFile.py [-h] filePath
+positional arguments:
+  filePath    File (eng or wag) to list.
+options:
+  -h, --help  show this help message and exit
+```
+
+Example:
+```
+py ORTS-ShowRollingStockFile.py "BNSF_GP38_2264.eng" > BNSF_GP38_new.eng
+641 lines in expanded file  BNSF_GP38_2264.eng
+```
 
 ### ORTS-RollingStockScanner.py
 Python script to list all the engines and wagons in (or below) the specified directory.
@@ -14,10 +37,8 @@ For each engine or wagon, a set of (physics centric) attributes are output in CS
 ```
 >py ORTS-RollingStockScanner.py -h
 usage: ORTS-RollingStockScanner.py [-h] [-f FILTER] [-v] dirPath
-
 positional arguments:
   dirPath              Directory where to search for eng and wag files.
-
 options:
   -h, --help           show this help message and exit
   -f, --filter FILTER  Optional filter. "eng" limits to engines, "wag" limits to wagons, any other value is matched to the file name
