@@ -38,7 +38,7 @@ args = parser.parse_args()
 filePath = args.filePath
 
 if not filePath.is_file() :
-    print( "Error: {} is not a directory.".format(filePath), file=sys.stderr)
+    print( "Error: {} is not a file. A single .eng or .wag file is required.".format(filePath), file=sys.stderr)
     sys.exit(1)
 
 if filePath.suffix != '.eng' and filePath.suffix != '.wag' :
