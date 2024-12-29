@@ -3,6 +3,11 @@
 #
 # Copyright (c) 2024 Roger Fischer. MIT License.
 #
+# Some of the more challengin tokens:
+# - Mass ( "56.163t  #23.186t empty, 90.163t full" )  --  comment inside quotes
+# - Name ( "BNSF SD70ACe #8490" )  -- not a comment
+# - DerailRailForce ( "2.5m/(s^2)*64t" )  -- non-trivial math
+#
 
 import argparse
 import pathlib
@@ -45,13 +50,12 @@ def readTrainsetFile(filePath, refDir) :
     return txt
 
 
-### get value for a token; specifically for something like Mass ( "56.163t  #23.186t empty, 90.163t full" ) or
-### DerailRailForce ( "2.5m/(s^2)*64t" ) -- including comments or parenthesis
+### get value for a token; exclude quotes
 ### is incorrect for nested tokens; stops at the closing parenthesis of a nested token
 def getValue( token, txt) :
     value = ''
     start = 0 ; end = 0
-    startPat = token + '\\s*\\(\\s*.' ; endPat = '.\\s*\\)'
+    startPat = token + '\\s*\\(\\s*.' ; endPat = '\\s*\\)'
     m = re.search(startPat, txt, flags=re.IGNORECASE)  # find opening parenthesis
     if m :
         start = m.end() - 1
@@ -60,12 +64,8 @@ def getValue( token, txt) :
             endPat = '"\\s*\\)'
         m = re.search(endPat, txt[start:], flags=re.IGNORECASE)  # find closing parenthesis
         if m :
-            end = start + m.end() - 1
+            end = start + m.start()
             value = txt[start:end]
-            # remove inline comment
-            m = re.search('(#[^)\\n\\r]+)([)\\n\\r])', value, flags=re.IGNORECASE)
-            if m and m.lastindex >= 1 :
-                value = value.replace(m.group(1), '', 1)  # remove comment
     return value
 
 
@@ -103,13 +103,12 @@ def processFile(values, txt, filePath, isEngine) :
             numWarn += 1
             print("Warning: Wagon name ({}) does not match engine name ({}) in {}".format(values[name], m.group(1), filePath), file=sys.stderr)
 
-    # display name; either in wagon or eng section
+    # display name, may contain spaces, may be quoted; either in wagon or engine section
     name = 'DispName' ; values[name] = '_'
     val = getValue('Name', txt)
-    m = re.search('\\s*(\\w+)\\s*', val, flags=re.IGNORECASE)
-    if m and m.lastindex >= 1 : values[name] = m.group(1)
+    if val : values[name] = val.strip()
     else :
-        values[name] = values['Name']  # default to name in Engin or Wagon token
+        values[name] = values['Name'] + ' (dflt)'  # default to name in Engine or Wagon token
         if verbose > 0 : print("Info: Unable to find wagon or engine display name in", filePath, file=sys.stderr)
 
     # wagon type (engine, freight, passenger, etc)
@@ -274,12 +273,13 @@ def processFile(values, txt, filePath, isEngine) :
     # adhesion, 3 values; has ORTS variant; is in wagon section, but only used for engines
     name = 'Adhesion' ; values[name] = '_'
     val = getValue( 'ORTSCurtius_Kniffler', wagTxt)
-    m = re.search('\\s*([-+0-9.,a-z/*"]+)\\s+([-+0-9.,a-z/*"]+)\\s+([-+0-9.,a-z/*"]+)\\s+([-+0-9.,a-z/*"]+)\\s+', val, flags=re.IGNORECASE)
-    if m and m.lastindex >= 4 : values[name] = "OR " + m.group(1) + " | " + m.group(2) + " | " + m.group(3) + " | " + m.group(4)
+    m = re.search('\\s*([-+0-9.,a-z/*"]+)\\s+([-+0-9.,a-z/*"]+)\\s+([-+0-9.,a-z/*"]+)\\s+([-+0-9.,a-z/*"]+)\\s*', val, flags=re.IGNORECASE)
+    if m and m.lastindex >= 4 :
+        values[name] = "OR " + m.group(1) + " | " + m.group(2) + " | " + m.group(3) + " | " + m.group(4)
     else :
-        val = getValue('Adheasion', wagTxt)
-        m = re.search('\\s*([-+0-9.,a-z/*"]+)\\s+([-+0-9.,a-z/*"]+)\\s+([-+0-9.,a-z/*"]+)\\s+', val, flags=re.IGNORECASE)
-        if m and m.lastindex >= 3 : values[name] = m.group(1) + " | " + m.group(2) + " | " + m.group(3)
+        val2 = getValue('Adheasion', wagTxt)
+        m2 = re.search('\\s*([-+0-9.,a-z/*"]+)\\s+([-+0-9.,a-z/*"]+)\\s+([-+0-9.,a-z/*"]+)\\s+', val2, flags=re.IGNORECASE)
+        if m2 and m2.lastindex >= 3 : values[name] = m2.group(1) + " | " + m2.group(2) + " | " + m2.group(3)
         elif isEngine :
             numWarn += 1
             print("Warning: Unable to find wagon adhesion values in", filePath, file=sys.stderr)
