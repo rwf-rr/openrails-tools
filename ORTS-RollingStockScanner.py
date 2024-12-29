@@ -103,6 +103,15 @@ def processFile(values, txt, filePath, isEngine) :
             numWarn += 1
             print("Warning: Wagon name ({}) does not match engine name ({}) in {}".format(values[name], m.group(1), filePath), file=sys.stderr)
 
+    # display name; either in wagon or eng section
+    name = 'DispName' ; values[name] = '_'
+    val = getValue('Name', txt)
+    m = re.search('\\s*(\\w+)\\s*', val, flags=re.IGNORECASE)
+    if m and m.lastindex >= 1 : values[name] = m.group(1)
+    else :
+        values[name] = values['Name']  # default to name in Engin or Wagon token
+        if verbose > 0 : print("Info: Unable to find wagon or engine display name in", filePath, file=sys.stderr)
+
     # wagon type (engine, freight, passenger, etc)
     name = 'Type' ; values[name] = '_'
     val = getValue('Type', wagTxt)
