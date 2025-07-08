@@ -13,6 +13,9 @@ Created for my own use, and made available (without any guarantees) here.
 -  **ORTS-RollingStockScanner.py**
    Find engines and wagons, and list important attributes in CSV format.
 
+Note: To install Python on Windows, go to https://www.python.org/downloads/windows/.
+The installer will configure the command line to run `py`.
+
 ### ORTS-CopyTrains.py
 Python script to copy the trains required by a route from another content folder.
 Scans the route's services for consists used.
