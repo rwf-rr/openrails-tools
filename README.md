@@ -4,11 +4,47 @@ Created for my own use, and made available (without any guarantees) here.
 
 ### Summary
 
+- **ORTS-CopyTrains.py**
+  Copy the trains required by a route from another content folder.
+
 - **ORTS-ShowRollingStockFile.py**
   Show an engine or wagon file in UTF-8, with all includes expanded.
 
 -  **ORTS-RollingStockScanner.py**
    Find engines and wagons, and list important attributes in CSV format.
+
+### ORTS-CopyTrains.py
+Python script to copy the trains required by a route from another content folder.
+Scans the route's services for consists used.
+Copies the consists from the specified content folder to the route's trains folder
+(actually the content folder where the route is).
+Then scans the consist file for engines and wagons, and for each one
+copies the whole trainset sub-folder.
+
+Useful, in conjunction with `Default-Content-Installer.exe`, to extract a route
+in a shared content folder into a separate content folder.
+
+```
+>py ORTS-CopyTrains.py -h
+usage: ORTS-CopyTrains.py [-h] [-v] routePath contentPath
+
+Copy all the consists and rolling stock (trainset) needed by a route from another content folder.
+
+positional arguments:
+  routePath      Route folder, to copy the trains to. The folder that contains the Services sub-folder.
+  contentPath    Content folder, to copy the trains from. The folder that contains the Trains sub-folder
+
+options:
+  -h, --help     show this help message and exit
+  -v, --verbose
+```
+
+Example:
+```
+>py ORTS-CopyTrains.py c:\Games\OpenRails\Content\MariasPass-3.1-MSTS\routes\Marias31 c:\Games\OpenRails\Content\PrevMSTS
+Info: copying trains (consists, trainset folders) for route "c:\Games\OpenRails\Content\MariasPass-3.1-MSTS\routes\Marias31" from content folder "c:\Games\OpenRails\Content\PrevMSTS".
+Sum: copied 34 Consists and 28 Trainsets folders.
+```
 
 ### ORTS-ShowRollingStockFile.py
 Python script to show an engine or wagon file. 
