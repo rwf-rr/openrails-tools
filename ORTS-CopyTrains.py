@@ -68,6 +68,8 @@ if not fromTrainsetDirPath.is_dir() :
     print( 'Error: Content folder "{}" to copy from does not contain a Trainset sub-folder ({}).'.format(contentPath.name, fromTrainsetDirPath), file=sys.stderr)
     sys.exit(1)
 
+print( 'Info: copying trains (consists, trainset folders) for route "{}" from content folder "{}".'.format( routePath, contentPath), file=sys.stderr)
+
 # for each service in the services folder
 for serviceFilePath in servicesDirPath.glob('*.srv') :
     if (verbose > 1) : print( 'Info: processing Service "{}", file "{}".'.format( serviceFilePath.name, serviceFilePath), file=sys.stderr)
