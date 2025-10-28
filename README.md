@@ -4,14 +4,17 @@ Created for my own use, and made available (without any guarantees) here.
 
 ### Summary
 
-- **ORTS-CopyTrains.py**
+- **ORTS-CopyTrains.py** --
   Copy the trains required by a route from another content folder.
 
-- **ORTS-ShowRollingStockFile.py**
+- **ORTS-ShowRollingStockFile.py** --
   Show an engine or wagon file in UTF-8, with all includes expanded.
 
--  **ORTS-RollingStockScanner.py**
-   Find engines and wagons, and list important attributes in CSV format.
+- **ORTS-RollingStockScanner.py** --
+  Find engines and wagons, and list important attributes in CSV format.
+
+- **launchpad-bugs-tools** --
+  Tools (mostly Python scripts) to perform bulk queries and updates on bugs in launchpad.
 
 Note: To install Python on Windows, go to https://www.python.org/downloads/windows/.
 The installer will configure the command line to run `py`.
@@ -95,3 +98,21 @@ Output generated (CSV file):
 Package,Directory,File,Name,Type,SubType,MaxSpeed,MaxPower,MaxForce,MaxBrakeForce,Weight,Length,Wheels/Axles,CouplerStrength,Friction,Adhesion,DerailRailForce,DerailBufferForce,TotalLength
 PrevMSTS,DASH9,dash9.eng,Dash9,Engine,Diesel,74mph,3267kW,634.7kN,94.6kN,187t,21.8m,12 | 4,5e7N,1976N/m/s | 0 | 0.7mph | 20.85N/m/s | 1.8,0.32 | 0.62 | 1.8,2.5*187t,515kN,_
 ```
+
+### launchpad-bugs-tools
+
+Tools, mostly Python scripts, to perform bulk queries and updates on Open Rails bugs in Launchpad.
+The scrips are meant to be edited to apply the desired filters and/or actions.
+That is easier than to anticipate all required functions.
+
+- ORTS-Export-Bugs.py  
+  Query a set of bugs and export them to stdout in CSV format.
+  Built-in filters are on the fields status, importance, date_created, date_last_updated, tags.
+
+
+- ORTS-Update-Bugs.py  
+  Update a set of bugs specified by id in a file or on stdin.
+  Built in actions are: setting status, setting importance, adding tags, clearing assignee.
+
+
+<span style="color:grey">--- end of page ---</span>
