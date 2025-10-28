@@ -42,7 +42,7 @@ cachedir = cm.name
 
 print( 'Connecting to Launchpad ...', file=sys.stderr)
 
-launchpad = Launchpad.login_anonymously( 'testing', 'production', cachedir, version='devel')
+launchpad = Launchpad.login_anonymously( 'or-maintenance', 'production', cachedir, version='devel')
 project = launchpad.projects['or']
 
 if personFilterPart :

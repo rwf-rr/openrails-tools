@@ -57,7 +57,7 @@ cache_dir = cm.name
 print( 'Connecting to Launchpad ...', file=sys.stderr)
 
 # this may bring up a web page to log into UbuntuOne and authorize the host machine
-launchpad = Launchpad.login_with( 'testing', 'production', cache_dir, version='devel')
+launchpad = Launchpad.login_with( 'or-maintenance', 'production', cache_dir, version='devel')
 project = launchpad.projects['or']
 
 print( 'Processing bug ids  ...', file=sys.stderr)
