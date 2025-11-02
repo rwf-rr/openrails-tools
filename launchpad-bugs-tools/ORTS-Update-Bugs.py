@@ -68,7 +68,6 @@ for bug_id in bug_id_list :
     if not bug_id.isdigit() :
         continue
 
-
     bug = launchpad.bugs[bug_id]
     if not bug :
         print( f'Error: unable to retrieve bug {bug_id}', file=sys.stderr)
@@ -99,8 +98,10 @@ for bug_id in bug_id_list :
     if clear_assignee :
         task.assignee_link = None
 
-    if verbose :
-        print(f'... updating bug {bug.id}, status {task.status}, tags {bug.tags} ...')
+    if verbose or testing :
+        print(f'... updating bug {bug.id}, status {task.status}, tags {bug.tags} ...', flush=True)
+    elif num_bugs_modified % 10 == 0 :
+        print(f'... {num_bugs_modified} updated', file=sys.stderr)
 
     if not testing :
         try :
