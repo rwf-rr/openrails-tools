@@ -26,7 +26,7 @@ print_only_id = False  # use argument --ids-only
 # search filters
 status_filter = ['New']
 importance_filter = ['Undecided']
-date_filter = '2021-10-19'  # 1.4 release
+date_filter = '2021-10-19'  # 1.4 release = 2021-10-19, 1.5 release = 2022-11-11, 1.6 release = 2025-09-09  
 tags_filter = ['content']
 person_filter_part = '~rwf09'  # eg "~rwf09"; will be prefixed with URL
 milestone_filter = '1.5'  # wg "1.5"; does not work because it gets converted to float somewhere
