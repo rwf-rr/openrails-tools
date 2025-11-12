@@ -18,7 +18,7 @@
 
 import sys
 import tempfile
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta
 from launchpadlib.launchpad import Launchpad
 
 print_only_id = False  # use argument --ids-only
@@ -35,7 +35,7 @@ milestone_filter = '1.5'  # wg "1.5"; does not work because it gets converted to
 order_by_fields = ['date_last_updated']
 
 # python filters; search does no support updated_before
-py_date_filter = date.fromisoformat( '2025-09-09')  # 1.6 release
+py_date_filter = date.fromisoformat( date_filter) + timedelta( days=7)
 
 if len( sys.argv) > 1 and sys.argv[1] == '--ids-only' :
     print_only_id = True
