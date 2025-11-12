@@ -29,11 +29,11 @@ verbose = True
 new_status = 'Expired'
 new_tags = ['obsolete']
 new_importance = None
-clear_assignee = False
+clear_assignee = True
 
 arg_len = len( sys.argv)
 if arg_len > 2 :
-    print( 'Invalid arguments, expecting one file or no argument: ', sys.argv)
+    print( 'Invalid arguments, expecting one file-path or no argument: ', sys.argv)
     exit(1)
 elif arg_len == 2 and os.path.isfile( sys.argv[1]) :
     in_file = open( sys.argv[1], 'r')
