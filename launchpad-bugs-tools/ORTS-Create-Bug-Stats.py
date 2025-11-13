@@ -128,6 +128,41 @@ def open_bugs_by_age_and_status_and_importance() :
 # end open_bugs_by_age_and_status_and_importance()
 
 
+### Bugs per Tag
+
+def count_and_print_tags(tasks) :
+    cnt = 0 ; ival = len(tasks) // 10
+    tag_counts = {'None':0}  # key is tag, value is count
+    for bug_task in tasks :
+        bug = bug_task.bug
+        tags = bug.tags
+        if tags is None or len(tags) == 0 :
+            tag_counts['None'] = tag_counts['None'] + 1
+        else :
+            for tag in tags :
+                if tag_counts.get(tag) : tag_counts[tag] = tag_counts[tag] + 1
+                else : tag_counts[tag] = 1
+        cnt += 1
+        if cnt % ival == 0 : print('.', end='', flush=True)
+    print('):', flush=True)
+    for t, c in sorted(tag_counts.items(), key=lambda item: item[1], reverse=True) :
+        print(f'{c:5d}  {t}', flush=True)
+    print('------------------------')
+# end count_and_print_tags()
+
+def tags_used_by_open_bugs() :
+    print('Tags used by open bugs (', end='', flush=True)
+    tasks = project.searchTasks()  # no filter matches only open bugs
+    count_and_print_tags(tasks)
+# end tags_used_by_open_bugs()
+
+def tags_used_by_closed_bugs():
+    print('Tags used by closed bugs (', end='', flush=True)
+    tasks = project.searchTasks(status=closed_states)
+    count_and_print_tags(tasks)
+# end tags_used_by_open_bugs()
+
+
 ### main
 
 cm = tempfile.TemporaryDirectory( prefix='launchpad-')
@@ -145,9 +180,12 @@ all_bugs_by_status()
 
 open_bugs_by_importance()
 
-# may take a long time - intended to verify the open and closed states
-if verbose > 1 : count_based_on_date_closed()
+# intended to verify the open and closed states
+if verbose > 1 : count_based_on_date_closed()  # slow
 
 open_bugs_by_age_and_status_and_importance()
+
+tags_used_by_open_bugs()  # slow
+if verbose > 0 : tags_used_by_closed_bugs()  # very slow
 
 exit(0)
