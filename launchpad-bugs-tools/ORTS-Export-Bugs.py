@@ -24,18 +24,20 @@ from launchpadlib.launchpad import Launchpad
 print_only_id = False  # use argument --ids-only
 
 # search filters
-status_filter = ['New']
+status_filter = ['New', 'Incomplete', 'Triaged']
 importance_filter = ['Undecided']
-date_filter = '2022-11-11'  # 1.4 release = 2021-10-19, 1.5 release = 2022-11-11, 1.6 release = 2025-09-09
+#date_filter = '2022-11-11'  # 1.4 release = 2021-10-19, 1.5 release = 2022-11-11, 1.6 release = 2025-09-09
+date_filter = (datetime.now() - timedelta( 730)).date().isoformat()
 tags_filter = ['content']
 person_filter_part = '~rwf09'  # eg "~rwf09"; will be prefixed with URL
 milestone_filter = '1.5'  # wg "1.5"; does not work because it gets converted to float somewhere
 
 # search order: date_last_updated, datecreated, importance, status, id
-order_by_fields = ['date_last_updated']
+order_by_fields = ['datecreated']
 
 # python filters; search does no support updated_before
-py_date_filter = date.fromisoformat( date_filter) + timedelta( days=7)
+#py_date_filter = date.fromisoformat( date_filter) + timedelta( days=7)
+py_date_filter = (datetime.now() - timedelta( 30)).date()
 
 if len( sys.argv) > 1 and sys.argv[1] == '--ids-only' :
     print_only_id = True
@@ -56,7 +58,7 @@ print( 'Fetching bugs from Launchpad ...', file=sys.stderr)
 # filters: status=list, importance=list, modified_since=str, created_before=str, created_since=str,
 #          tags=list,bug_reporter=link, assignee=link, milestone=???
 # order: order_by=list
-tasks = project.searchTasks(status=status_filter, importance=importance_filter, created_before=date_filter,
+tasks = project.searchTasks(status=status_filter, created_before=date_filter,
                             order_by=order_by_fields)
 
 print( '{} tasks found in launchpad'.format( len(tasks)), file=sys.stderr)
