@@ -170,7 +170,7 @@ cache_dir = cm.name
 
 print( 'Connecting to Launchpad ...', file=sys.stderr)
 
-launchpad = Launchpad.login_anonymously( 'explore', 'production', cache_dir, version='devel')
+launchpad = Launchpad.login_anonymously( 'or-maintenance', 'production', cache_dir, version='devel')
 project = launchpad.projects['or']
 lptz = project.date_created.tzinfo
 
