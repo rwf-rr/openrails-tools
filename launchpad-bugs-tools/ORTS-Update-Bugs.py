@@ -27,9 +27,9 @@ testing = False
 verbose = True
 
 new_status = 'Expired'
-new_tags = ['obsolete']
+new_tags = ['stale']
 new_importance = None
-clear_assignee = True
+clear_assignee = False
 
 arg_len = len( sys.argv)
 if arg_len > 2 :
