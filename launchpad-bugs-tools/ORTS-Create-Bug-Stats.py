@@ -163,6 +163,24 @@ def tags_used_by_closed_bugs():
 # end tags_used_by_open_bugs()
 
 
+### Count Fixed Bugs by Release
+
+def release_used_by_fixed_bugs() :
+    print('Fixed bugs by milestone:', flush=True)
+    milestone_counts = {}
+    all_milestones = project.all_milestones
+    tasks = project.searchTasks(status='Fix Released', milestone=None)
+    milestone_counts['None'] = len(tasks)  # not sure why tasks.total_size does not work
+    for milestone in all_milestones :
+        milestone_name = milestone.name
+        tasks = project.searchTasks(status='Fix Released', milestone=milestone.self_link)
+        milestone_counts[milestone_name] = len(tasks)
+    for m, c in sorted(milestone_counts.items(), key=lambda item: item[0]):
+        print(f'{c:5d}  {m}', flush=True)
+    print('------------------------')
+# end release_used_by_fixed_bugs()
+
+
 ### main
 
 cm = tempfile.TemporaryDirectory( prefix='launchpad-')
@@ -187,5 +205,7 @@ open_bugs_by_age_and_status_and_importance()
 
 tags_used_by_open_bugs()  # slow
 if verbose > 0 : tags_used_by_closed_bugs()  # very slow
+
+release_used_by_fixed_bugs()
 
 exit(0)
