@@ -24,7 +24,7 @@ from launchpadlib.launchpad import Launchpad
 print_only_id = False  # use argument --ids-only
 
 # search filters
-status_filter = ['New', 'Incomplete', 'Triaged']
+status_filter = ['In Progress']
 importance_filter = ['Undecided']
 #date_filter = '2022-11-11'  # 1.4 release = 2021-10-19, 1.5 release = 2022-11-11, 1.6 release = 2025-09-09
 date_filter = (datetime.now() - timedelta( 730)).date().isoformat()
@@ -75,8 +75,8 @@ for task in tasks :
     created = bug.date_created.date()
     updated = bug.date_last_updated.date()
     tags = ','.join(bug.tags)
-    user_name = owner.display_name.encode('utf-8', 'replace')
-    bug_title = bug.title.encode('utf-8', 'replace')
+    user_name = owner.display_name  # .encode('utf-8', 'replace')
+    bug_title = bug.title  # .encode('utf-8', 'replace')
 
     # search does not have an updated_before filter
     if updated < py_date_filter :
