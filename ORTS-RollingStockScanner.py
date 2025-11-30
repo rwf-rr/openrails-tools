@@ -83,6 +83,9 @@ def processFile(values, txt, filePath, isEngine) :
             numWarn += 1
             print("Warning: Unable to find engine section in", filePath, file=sys.stderr)
 
+    fileSize = filePath.stat().st_size
+    values['FileSize'] = str(fileSize)
+
     # get wagon name, engine name; nested token, cannot use getValue()
     name = 'Name' ; values[name] = '_'
     m = re.search('Wagon\\s*\\(\\s*"?(\\w+)"?', txt, flags=re.IGNORECASE)
