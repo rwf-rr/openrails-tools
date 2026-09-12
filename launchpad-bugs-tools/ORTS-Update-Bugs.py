@@ -28,6 +28,7 @@ verbose = True
 
 new_status = 'Expired'
 new_tags = ['stale']
+obsolete_tags = ['follow-up']
 new_importance = None
 clear_assignee = False
 
@@ -84,9 +85,10 @@ for bug_id in bug_id_list :
         print(f'Bug {bug_id} "{bug.title}" is not targeted to OpenRails - skipping it.', file=sys.stderr)
         continue
 
-    if new_tags :
-        new_tag_list = bug.tags
-        new_tag_list.extend( new_tags)
+    new_tag_list = bug.tags
+    if new_tags : new_tag_list.extend( new_tags)
+    if obsolete_tags : new_tag_list = [x for x in new_tag_list if x not in obsolete_tags]
+    if new_tags or obsolete_tags :
         bug.tags = new_tag_list
 
     if new_status :
