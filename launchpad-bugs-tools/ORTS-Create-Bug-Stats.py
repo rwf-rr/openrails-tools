@@ -181,6 +181,20 @@ def release_used_by_fixed_bugs() :
 # end release_used_by_fixed_bugs()
 
 
+### Count Open Bugs by all States using API
+
+def count_bugs_by_state() :
+    print('Open bugs by all states:', flush=True)
+    counts = project.searchTasksCounts()
+    for s, c in counts['by_status'].items() :
+        print(f'{c:5d}  {s}', flush=True)
+    print('------------------------')
+    for i, c in counts['by_importance'].items():
+        print(f'{c:5d}  {i}', flush=True)
+print('------------------------')
+# end count_bugs_by_state()
+
+
 ### main
 
 cm = tempfile.TemporaryDirectory( prefix='launchpad-')
@@ -207,5 +221,7 @@ tags_used_by_open_bugs()  # slow
 if verbose > 0 : tags_used_by_closed_bugs()  # very slow
 
 release_used_by_fixed_bugs()
+
+if verbose > 0 : count_bugs_by_state()
 
 exit(0)

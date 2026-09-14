@@ -24,10 +24,14 @@ from launchpadlib.launchpad import Launchpad
 print_only_id = False  # use argument --ids-only
 
 # search filters
-status_filter = ['In Progress']
+open_states = ['New', 'Incomplete', 'Triaged', 'Deferred', 'Confirmed', 'In Progress', 'Fix Committed']
+closed_states = ['Fix Released', 'Invalid', "Won't Fix", 'Does Not Exist', 'Expired', 'Opinion']
+status_filter = open_states
+importance = ['Unknown', 'Undecided', 'Critical', 'High', 'Medium', 'Low', 'Wishlist']
 importance_filter = ['Undecided']
 #date_filter = '2022-11-11'  # 1.4 release = 2021-10-19, 1.5 release = 2022-11-11, 1.6 release = 2025-09-09
 date_filter = (datetime.now() - timedelta( 730)).date().isoformat()
+some_tags = ['obsolete', 'stale', 'content', 'insufficient-info', 'duplicate', 'incomplete', 'contrib']
 tags_filter = ['content']
 person_filter_part = '~rwf09'  # eg "~rwf09"; will be prefixed with URL
 milestone_filter = '1.5'  # wg "1.5"; does not work because it gets converted to float somewhere
@@ -56,9 +60,9 @@ if person_filter_part :
 print( 'Fetching bugs from Launchpad ...', file=sys.stderr)
 
 # filters: status=list, importance=list, modified_since=str, created_before=str, created_since=str,
-#          tags=list,bug_reporter=link, assignee=link, milestone=???
+#          tags=list, bug_reporter=link, assignee=link, milestone=???
 # order: order_by=list
-tasks = project.searchTasks(status=status_filter, created_before=date_filter,
+tasks = project.searchTasks(status=status_filter,
                             order_by=order_by_fields)
 
 print( '{} tasks found in launchpad'.format( len(tasks)), file=sys.stderr)
@@ -78,7 +82,7 @@ for task in tasks :
     user_name = owner.display_name  # .encode('utf-8', 'replace')
     bug_title = bug.title  # .encode('utf-8', 'replace')
 
-    # search does not have an updated_before filter
+    # search does not have a modified_before filter
     if updated < py_date_filter :
         if print_only_id :
             print( bug.id)
