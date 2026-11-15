@@ -12,11 +12,19 @@ import math
 import re
 import sys
 
-track_section_authors = []
-track_shape_authors = []
-track_sections = {}
-track_shapes = {}
+track_section_authors = []  # (start, end, author-string)
+track_shape_authors = []    # (start, end, author-string)
+track_sections = {}         # [section-index]['Gauge [m]'|'Gauge [ft]'|'Type'|'Length [m]'|'Length [ft]'|'Skew']
+track_shapes = {}           # [shape-index]['FileName'|'NumPaths'|'SectionIdx'[]]
+shape_files = {}            # [file-name]SectionIdx[]
 
+
+### print warning message
+def warn(level, message, addl_text) :
+    global verbose
+    if verbose > level : print(message + addl_text, file=sys.stderr)
+    elif verbose >= level : print(message, file=sys.stderr)
+    return
 
 
 ### read a file that is either utf-16 or utf8
@@ -36,6 +44,17 @@ def get_author( author_list, section_idx) :
     return '__not-found__'
 
 
+### skip to end of block, handling embedded sub-blocks
+def skip_to_end_of_block(block_text, start_pos, limit) :
+    char_cnt = 1 ; sub_block_cnt = 0
+    for i in range(start_pos, start_pos+limit) :
+        if block_text[i] == ')' and sub_block_cnt == 0 : break
+        elif block_text[i] == ')' : sub_block_cnt -= 1
+        elif block_text[i] == '(' : sub_block_cnt += 1
+        char_cnt += 1
+    return char_cnt + 1
+
+
 ### Parse the tsection.dat file and build dictionaries of track sections and shapes
 def process_tsection_file(ts_file_path) :
     global track_section_authors, track_sections, track_shape_authors, track_shapes, num_warn
@@ -52,7 +71,7 @@ def process_tsection_file(ts_file_path) :
     new_pos = 0
     matches = re.finditer('^Sections\\s+(\\d+)(.*)$', section_authors_text, flags=re.IGNORECASE | re.MULTILINE)
     if not matches :
-        print('Warning: Unable to find "Sections <n1>-<n2> <author>" lines in "{}"'.format(ts_file_path), file=sys.stderr)
+        warn(1, 'Warning: Unable to find "Sections <n1>-<n2> <author>" lines in "{}"'.format(ts_file_path), '')
         num_warn += 1
     else :
         for match in matches :
@@ -66,7 +85,7 @@ def process_tsection_file(ts_file_path) :
             else :
                 m2 = re.search('-\\s*(\\d+)\\s+(.*)', text, flags=re.IGNORECASE)
                 if not m2 or m2.lastindex < 2 :
-                    if verbose > 1 : print('Warning: Unable to find end-number and author in "{}"'.format(text), file=sys.stderr)
+                    warn(1, 'Warning: Unable to find end-number and author in "{}"'.format(text), '')
                     num_warn += 1
                     end_num = start_num
                     author = '__not-found__'
@@ -76,7 +95,7 @@ def process_tsection_file(ts_file_path) :
             new_pos = match.end()
             track_section_authors.append((start_num, end_num, author))
 
-    if verbose > 0 : print('Info: {} track section authors found; {} warnings'.format(len(track_section_authors), num_warn), file=sys.stderr)
+    print('Info: {} track section authors found; {} warnings'.format(len(track_section_authors), num_warn), file=sys.stderr)
 
     # continue from where the sections authors ended
     offset += new_pos
@@ -99,20 +118,20 @@ def process_tsection_file(ts_file_path) :
 
         gauge_m = size_m = radius_m = -0.1 ; angle_d = skew_d = 0.0
         length_found = curve_found = skew_found = False
-        for _ in range(3) :   # at most SectionSize, SectionCurve and SectionSkew, although curve and skew seem exclusive
+        for _ in range(4) :   # hard limit for safety
             # get next token, should be SectionSize or SectionCurve
             next_text = sections_text[new_pos:new_pos+200]
             if next_text.lstrip()[0] == ')' :
                 break   # end of TrackSection
             m = re.search('\\s*([^ ()\t\n\r\f\v]+)\\s+\\(', next_text[:30])
             if not m or m.lastindex < 1 :
-                if verbose > 1 : print('Warning: Unable to find token after TrackSection for index {} in string "{}"'.format(section_idx, next_text), file=sys.stderr)
+                warn(1, 'Warning: Unable to find token after TrackSection for index {}'.format(section_idx), ' in string\n' + next_text)
                 num_warn += 1
                 break
             elif m.group(1).lower() == 'sectionsize' :
                 m = re.search('SectionSize\\s+\\(\\s*([^ ()\t\n\r\f\v]+)\\s+([^ ()\t\n\r\f\v]+)\\s*\\)', next_text, flags=re.IGNORECASE)
                 if not m or m.lastindex < 2 :
-                    if verbose > 1 : print('Warning: Unable to find gauge and length in Track Section with index {} and string "{}"'.format(section_idx, next_text), file=sys.stderr)
+                    warn(1, 'Warning: Unable to find gauge and length in Track Section with index {}'.format(section_idx), ' in string\n' + next_text)
                     num_warn += 1
                     break
                 else :
@@ -123,7 +142,7 @@ def process_tsection_file(ts_file_path) :
             elif m.group(1).lower() == 'sectioncurve' :
                 m = re.search('SectionCurve\\s+\\(\\s*([^ ()\t\n\r\f\v]+)\\s+([^ ()\t\n\r\f\v]+)\\s*\\)', next_text, flags=re.IGNORECASE)
                 if not m or m.lastindex < 2 :
-                    if verbose > 1 : print('Warning: Unable to find radius and angle in Track Section with index {} and string "{}"'.format(section_idx, next_text), file=sys.stderr)
+                    warn(1, 'Warning: Unable to find radius and angle in Track Section with index {}'.format(section_idx), ' in string\n' + next_text)
                     num_warn += 1
                     break
                 else :
@@ -134,7 +153,7 @@ def process_tsection_file(ts_file_path) :
             elif m.group(1).lower() == 'sectionskew' :
                 m = re.search('SectionSkew\\s+\\(\\s*([^ ()\t\n\r\f\v]+)\\s*\\)', next_text, flags=re.IGNORECASE)
                 if not m or m.lastindex < 1 :
-                    if verbose > 1 : print('Warning: Unable to find skew in Track Section with index {} and string "{}"'.format(section_idx, next_text), file=sys.stderr)
+                    warn(1, 'Warning: Unable to find skew in Track Section with index {}'.format(section_idx), ' in string\n' + next_text)
                     num_warn += 1
                     break
                 else :
@@ -145,7 +164,7 @@ def process_tsection_file(ts_file_path) :
                 # ignore
                 new_pos += m.end()
             else :
-                if verbose > 1 : print('Warning: Unexpected token "{}" in Track Section with index {} and string\n"{}"'.format(m.group(1), section_idx, match.group() + next_text), file=sys.stderr)
+                warn(1, 'Warning: Unexpected token "{}" in Track Section with index {}'.format(m.group(1), section_idx), ' in string\n' + match.group() + next_text)
                 num_warn += 1
                 break
 
@@ -166,14 +185,12 @@ def process_tsection_file(ts_file_path) :
                 track_sections[section_idx]['Skew'] = '{:.2f}'.format(skew_d)
             num_sections += 1
         else :
-            if verbose > 1: print('Warning: Neither SectionSize nor SectionCurve found in Track Section with index {}'.format(section_idx), file=sys.stderr)
+            warn(1, 'Warning: Neither SectionSize nor SectionCurve found in Track Section with index {}'.format(section_idx), '')
             num_warn += 1
             continue
-
-        if verbose > 2 : print('Info: Added Track Section', track_sections[section_idx])
     # end for each match
 
-    if verbose > 0 : print('Info: {} track sections found, {} track sections parsed; {} warnings'.format(num_sections, len(track_sections), num_warn), file=sys.stderr)
+    print('Info: {} track sections found, {} track sections parsed; {} warnings'.format(num_sections, len(track_sections), num_warn), file=sys.stderr)
     # for tsection.dat #54, should be 7399, 0-39998
     section_labels = ['Type', '"Gauge [m]"', '"Length [m]"', ]
     if dump :
@@ -190,7 +207,7 @@ def process_tsection_file(ts_file_path) :
     new_pos = 0
     matches = re.finditer('^Shapes\\s+(\\d+)(.*)$', shape_authors_text, flags=re.IGNORECASE | re.MULTILINE)
     if not matches :
-        print('Warning: Unable to find "Shapes <n1>-<n2> <author>" lines in "{}"'.format(ts_file_path), file=sys.stderr)
+        warn(1, 'Warning: Unable to find "Shapes <n1>-<n2> <author>" lines in "{}"'.format(ts_file_path), '')
         num_warn += 1
     else :
         for match in matches :
@@ -204,7 +221,7 @@ def process_tsection_file(ts_file_path) :
             else :
                 m2 = re.search('-\\s*(\\d+)\\s+(.*)', text, flags=re.IGNORECASE)
                 if not m2 or m2.lastindex < 2 :
-                    if verbose > 1 : print('Warning: Unable to find end-number and author in "{}"'.format(text), file=sys.stderr)
+                    warn(1, 'Warning: Unable to find end-number and author in "{}"'.format(text), '')
                     num_warn += 1
                     end_num = start_num
                     author = '__not-found__'
@@ -214,7 +231,7 @@ def process_tsection_file(ts_file_path) :
             new_pos = match.end()
             track_shape_authors.append((start_num, end_num, author))
 
-    if verbose > 0 : print('Info: {} shape authors found; {} warnings'.format(len(track_shape_authors), num_warn), file=sys.stderr)
+    print('Info: {} shape authors found; {} warnings'.format(len(track_shape_authors), num_warn), file=sys.stderr)
 
     # continue from where the shape authors ended
     offset += new_pos
@@ -236,22 +253,22 @@ def process_tsection_file(ts_file_path) :
         author = get_author(track_shape_authors, shape_idx)
         track_shapes[shape_idx] = {'Author': author}
         new_pos = match.end()
-        filename = '' ; numpaths = 0 ; section_indices = []
-        filename_found = numpaths_found = False
-        for _ in range(3) :   # at most SectionSize, SectionCurve and SectionSkew, although curve and skew seem exclusive
+        filename = '' ; num_paths = 0 ; section_indices = []
+        filename_found = num_paths_found = False
+        for _ in range(16) :   # hard limit for safety
             # get next token, should be SectionSize or SectionCurve
-            next_text = shapes_text[new_pos:new_pos+200]
+            next_text = shapes_text[new_pos:new_pos+200]  # all tokens should be shorter than 200 chars
             if next_text.lstrip()[0] == ')' :
                 break   # end of TrackShape
             m = re.search('\\s*([^ ()\t\n\r\f\v]+)\\s+\\(', next_text[:30])
             if not m or m.lastindex < 1 :
-                if verbose > 1 : print('Warning: Unable to find token after Track Shape for index {} in string "{}"'.format(shape_idx, next_text), file=sys.stderr)
+                warn(1, 'Warning: Unable to find token after Track Shape for index {}'.format(shape_idx), ' in string\n' + next_text)
                 num_warn += 1
                 break
             elif m.group(1).lower() == 'filename' :
                 m = re.search('FileName\\s+\\(\\s*([^ ()\t\n\r\f\v]+)\\s*\\)', next_text, flags=re.IGNORECASE)
                 if not m or m.lastindex < 1 :
-                    if verbose > 1 : print('Warning: Unable to find filename in Track Shape with index {} and string "{}"'.format(shape_idx, next_text), file=sys.stderr)
+                    warn(1, 'Warning: Unable to find filename in Track Shape with index {}'.format(shape_idx), ' in string\n' + next_text)
                     num_warn += 1
                     break
                 else :
@@ -261,17 +278,18 @@ def process_tsection_file(ts_file_path) :
             elif m.group(1).lower() == 'numpaths' :
                 m = re.search('NumPaths\\s+\\(\\s*([^ ()\t\n\r\f\v]+)\\s*\\)', next_text, flags=re.IGNORECASE)
                 if not m or m.lastindex < 1 :
-                    if verbose > 1 : print('Warning: Unable to find number of paths in Track Shape with index {} and string "{}"'.format(shape_idx, next_text), file=sys.stderr)
+                    warn(1, 'Warning: Unable to find number of paths in Track Shape with index {}'.format(shape_idx), ' in string\n' + next_text)
                     num_warn += 1
                     break
                 else :
-                    numpaths_found = True
-                    numpaths = int(m.group(1))
+                    num_paths_found = True
+                    num_paths = int(m.group(1))
                     new_pos += m.end()
             elif m.group(1).lower() == 'sectionidx' :
-                m = re.search('SectionIdx\\s+\\(\\s*([^ ()\t\n\r\f\v]+)\\s+[^ ()\t\n\r\f\v]+\\s+[^ ()\t\n\r\f\v]+\\s+[^ ()\t\n\r\f\v]+\\s+[^ ()\t\n\r\f\v]+\\s+([^)]+)\\)', next_text, flags=re.IGNORECASE)
+                # SectionIdx ( num-sections X Y Z A section-idx ... )
+                m = re.search('SectionIdx\\s+\\(\\s*(\\d+)\\s+[^ )]+\\s+[^ )]+\\s+[^ )]+\\s+[^ )]+\\s+([^()\t\n\r\f\v]+)\\s*\\)', next_text, flags=re.IGNORECASE)
                 if not m or m.lastindex < 2 :
-                    if verbose > 1 : print('Warning: Unable to find section indices in Track Shape with index {} and string "{}"'.format(shape_idx, next_text), file=sys.stderr)
+                    warn(1, 'Warning: Unable to find section indices in Track Shape with index {}'.format(shape_idx), ' in string\n' + next_text)
                     num_warn += 1
                     break
                 else :
@@ -279,7 +297,7 @@ def process_tsection_file(ts_file_path) :
                     # the trailing string is a list of section indices
                     str_indices = m.group(2).split()
                     if num_indices != len(str_indices) :
-                        if verbose > 1: print('Warning: Number of indexes ({} vs {}) do not match in Track Shape with index {} and string "{}"'.format(num_indices, len(str_indices), shape_idx, next_text), file=sys.stderr)
+                        warn(1, 'Warning: Number of indexes ({} vs {}) do not match in Track Shape with index {}'.format(num_indices, len(str_indices), shape_idx), ' in string\n' + next_text)
                         num_warn += 1
                     else :
                         for idx in str_indices :
@@ -288,38 +306,54 @@ def process_tsection_file(ts_file_path) :
             elif m.group(1).lower() == 'mainroute' :
                 # ignore
                 new_pos += m.end()
+                new_pos += skip_to_end_of_block(shapes_text, new_pos, 20)
             elif m.group(1).lower() == 'clearancedist' :
                 # ignore
                 new_pos += m.end()
+                new_pos += skip_to_end_of_block(shapes_text, new_pos, 20)
             elif m.group(1).lower() == 'tunnelshape' :
                 # ignore
                 new_pos += m.end()
+                new_pos += skip_to_end_of_block(shapes_text, new_pos, 20)
             elif m.group(1).lower() == 'roadshape' :
                 # ignore
                 new_pos += m.end()
+                new_pos += skip_to_end_of_block(shapes_text, new_pos, 20)
+            elif m.group(1).lower() == 'manualjunctionshape':
+                # ignore
+                new_pos += m.end()
+                new_pos += skip_to_end_of_block(shapes_text, new_pos, 20)
+            elif m.group(1).lower() == 'crossovershape':
+                # ignore
+                new_pos += m.end()
+                new_pos += skip_to_end_of_block(shapes_text, new_pos, 20)
+            elif m.group(1).lower() == 'xoverpts':
+                # ignore
+                new_pos += m.end()
+                new_pos += skip_to_end_of_block(shapes_text, new_pos, 200)
             else :
-                if verbose > 1: print('Warning: Unexpected token "{}" in Track Shape with index {} and string\n"{}"'.format(m.group(1), shape_idx, match.group() + next_text), file=sys.stderr)
+                warn(1, 'Warning: Unexpected token "{}" in Track Shape with index {}'.format(m.group(1), shape_idx), ' in string\n' + match.group() + next_text)
                 num_warn += 1
+                new_pos += skip_to_end_of_block(shapes_text, new_pos, 20)
                 break
 
         if filename_found :
             track_shapes[shape_idx]['FileName'] = filename
             num_shapes += 1
-            if numpaths_found:
-                track_shapes[shape_idx]['NumPaths'] = numpaths
+            if num_paths_found:
+                track_shapes[shape_idx]['NumPaths'] = num_paths
             track_shapes[shape_idx]['SectionIdx'] = []
             for idx in section_indices :
                 track_shapes[shape_idx]['SectionIdx'].append(idx)
+            shape_files[filename] = section_indices
         else :
-            if verbose > 1: print('Warning: Filename not found in Track Shape with index {}'.format(shape_idx), file=sys.stderr)
+            warn(1, 'Warning: Filename not found in Track Shape with index {}'.format(shape_idx), '')
             num_warn += 1
             continue
-
-        if verbose > 2 : print('Info: Added Track Shape', track_shapes[shape_idx])
     # end for each match
 
-    if verbose > 0 : print('Info: {} shapes found, {} shapes parsed; {} warnings'.format(num_shapes, len(track_shapes), num_warn), file=sys.stderr)
-    # for tsection.dat #54, should be 14631, 0-39998
+    print('Info: {} shapes found, {} shapes parsed; {} warnings'.format(num_shapes, len(track_shapes), num_warn), file=sys.stderr)
+    print('Info: {} shape files found'.format(len(shape_files)), file=sys.stderr)
 
     return
 # end process_tsection_file()
