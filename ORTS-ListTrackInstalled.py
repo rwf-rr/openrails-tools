@@ -6,6 +6,8 @@
 # Copyright (c) 2026 Roger Fischer. MIT License.
 #
 
+# Simulator (TrVectorSection) uses SectionIndex connect tracks. RouteEditor uses Shape File Name to add track.
+
 import argparse
 import pathlib
 import math
@@ -14,10 +16,11 @@ import sys
 
 track_section_authors = []  # (start, end, author-string)
 track_shape_authors = []    # (start, end, author-string)
-track_sections = {}         # [section-index]['Gauge [m]'|'Gauge [ft]'|'Type'|'Length [m]'|'Length [ft]'|'Skew']
-track_shapes = {}           # [shape-index]['FileName'|'NumPaths'|'SectionIdx'[]]
-shape_files = {}            # [file-name]SectionIdx[]
-
+track_sections = {}         # [section-index]{'Type'|'Length [m]'|'Length [ft]'|'Radius [m]'|'Radius [ft]'|'Angle [°]'|'Skew'|'Gauge [m]'|'Gauge [ft]'}
+track_shapes = {}           # [shape-index]{'FileName'|'Category'|'Type'|'NumPaths'|'SectionIndices'[]}
+shape_files = {}            # [file-name]{'Category'|'Type'|'ShapeIndices'[]|'SectionIndices'[]}
+expanded_section_authors = []
+expanded_shape_authors = []
 
 ### print warning message
 def warn(level, message, addl_text) :
@@ -55,9 +58,19 @@ def skip_to_end_of_block(block_text, start_pos, limit) :
     return char_cnt + 1
 
 
+### expand the author list for easy lookup
+def expand_author_list( author_list, max) :
+    new_list = ['unknown'] * (max+500)  # add some safety
+    for author in author_list :
+        for i in range(author[0], author[1]) :
+            if i > max : break
+            new_list[i] = author[2]
+    return new_list
+
+
 ### Parse the tsection.dat file and build dictionaries of track sections and shapes
 def process_tsection_file(ts_file_path) :
-    global track_section_authors, track_sections, track_shape_authors, track_shapes, num_warn
+    global track_section_authors, track_sections, track_shape_authors, track_shapes, expanded_section_authors, expanded_shape_authors
 
     ts_text = read_file(ts_file_path)
 
@@ -94,6 +107,7 @@ def process_tsection_file(ts_file_path) :
                     author = m2.group(2)
             new_pos = match.end()
             track_section_authors.append((start_num, end_num, author))
+    expanded_section_authors = expand_author_list(track_section_authors, 40000)
 
     print('Info: {} track section authors found; {} warnings'.format(len(track_section_authors), num_warn), file=sys.stderr)
 
@@ -113,7 +127,7 @@ def process_tsection_file(ts_file_path) :
     for match in matches :
         section_idx = int(match.group(1))
         author = get_author(track_section_authors, section_idx)
-        track_sections[section_idx] = {'Author': author}
+        track_sections[section_idx] = {'Author': author, 'Type': 'unknown', 'Length [m]': '', 'Length [ft]': '', 'Radius [m]': '', 'Radius [ft]': '', 'Angle [°]': '', 'Skew [°]': '', 'Gauge [m]': '', 'Gauge [ft]': ''}
         new_pos = match.end()
 
         gauge_m = size_m = radius_m = -0.1 ; angle_d = skew_d = 0.0
@@ -147,6 +161,7 @@ def process_tsection_file(ts_file_path) :
                     break
                 else :
                     curve_found = True
+                    s1 = m.group(1) ; s2 = m.group(2)
                     radius_m = float(m.group(1))
                     angle_d = float(m.group(2))
                     new_pos += m.end()
@@ -166,31 +181,48 @@ def process_tsection_file(ts_file_path) :
             else :
                 warn(1, 'Warning: Unexpected token "{}" in Track Section with index {}'.format(m.group(1), section_idx), ' in string\n' + match.group() + next_text)
                 num_warn += 1
-                break
+                new_pos += m.end()
+                new_pos += skip_to_end_of_block(sections_text, new_pos, 50)
+        # end for each token in TrackSection
 
-        if length_found :
-            track_sections[section_idx]['Gauge [m]'] = '{:.2f}'.format(gauge_m)
-            track_sections[section_idx]['Gauge [ft]'] = '{:.2f}'.format(gauge_m * 3.28084)
+        track_sections[section_idx]['Type'] = 'invalid'
+        track_sections[section_idx]['FromShapes'] = []
+        if not length_found and not curve_found :
+            warn(1, 'Warning: Neither SectionSize nor SectionCurve found in Track Section with index {}'.format(section_idx), '')
+            num_warn += 1
+        else :
+            if length_found :
+                track_sections[section_idx]['Gauge [m]'] = '{:.2f}'.format(gauge_m)
+                track_sections[section_idx]['Gauge [ft]'] = '{:.2f}'.format(gauge_m * 3.28084)
             if curve_found :
-                if angle_d < 0 : track_sections[section_idx]['Type'] = 'curved-left'
-                else : track_sections[section_idx]['Type'] = 'curved-left'
-                track_length = math.fabs(radius_m * math.radians(angle_d))
-                track_sections[section_idx]['Length [m]'] = '{:.2f}'.format(track_length)
-                track_sections[section_idx]['Length [ft]'] = '{:.2f}'.format(track_length * 3.28084)
+                if angle_d < 0.0 : track_sections[section_idx]['Type'] = 'curved-left'
+                else : track_sections[section_idx]['Type'] = 'curved-right'
+                calc_track_length = math.fabs(radius_m * math.radians(angle_d))
+                track_sections[section_idx]['Length [m]'] = '{:.2f}'.format(calc_track_length)
+                track_sections[section_idx]['Length [ft]'] = '{:.2f}'.format(calc_track_length * 3.28084)
+                track_sections[section_idx]['Radius [m]'] = '{:.2f}'.format(radius_m)
+                track_sections[section_idx]['Radius [ft]'] = '{:.2f}'.format(radius_m * 3.28084)
+                track_sections[section_idx]['Angle [°]'] = '{:.2f}'.format(angle_d)
             else :
                 track_sections[section_idx]['Type'] = 'straight'
                 track_sections[section_idx]['Length [m]'] = '{:.2f}'.format(size_m)
                 track_sections[section_idx]['Length [ft]'] = '{:.2f}'.format(size_m * 3.28084)
             if skew_found :
-                track_sections[section_idx]['Skew'] = '{:.2f}'.format(skew_d)
+                track_sections[section_idx]['Skew [°]'] = '{:.2f}'.format(skew_d)
             num_sections += 1
-        else :
-            warn(1, 'Warning: Neither SectionSize nor SectionCurve found in Track Section with index {}'.format(section_idx), '')
-            num_warn += 1
-            continue
     # end for each match
 
+    num_left = num_right = num_straight = num_other = 0
+    for sidx in track_sections :
+        if track_sections[sidx]['Type'] == 'curved-left' : num_left += 1
+        elif track_sections[sidx]['Type'] == 'curved-right'  : num_right += 1
+        elif track_sections[sidx]['Type'] == 'straight' : num_straight += 1
+        else : num_other += 1
+
     print('Info: {} track sections found, {} track sections parsed; {} warnings'.format(num_sections, len(track_sections), num_warn), file=sys.stderr)
+    print(' curved-left curved-right     straight        other', file=sys.stderr)
+    print('{: >12} {: >12} {: >12} {: >12}'.format(num_left, num_right, num_straight, num_other), file=sys.stderr)
+
     # for tsection.dat #54, should be 7399, 0-39998
     section_labels = ['Type', '"Gauge [m]"', '"Length [m]"', ]
     if dump :
@@ -230,6 +262,7 @@ def process_tsection_file(ts_file_path) :
                     author = m2.group(2)
             new_pos = match.end()
             track_shape_authors.append((start_num, end_num, author))
+    expanded_shape_authors = expand_author_list(track_shape_authors, 40000)
 
     print('Info: {} shape authors found; {} warnings'.format(len(track_shape_authors), num_warn), file=sys.stderr)
 
@@ -244,7 +277,7 @@ def process_tsection_file(ts_file_path) :
     #  SectionIdx ( 1 0 0 0 0 0 )
     #  ...
     # )
-    num_warn = 0
+    num_warn = 0 ; num_file_warn = 0
     num_shapes = 0
     new_pos = 0
     matches = re.finditer('^\\s*TrackShape\\s+\\(\\s*(\\d+)\\s*', shapes_text, flags=re.IGNORECASE | re.MULTILINE)
@@ -253,7 +286,8 @@ def process_tsection_file(ts_file_path) :
         author = get_author(track_shape_authors, shape_idx)
         track_shapes[shape_idx] = {'Author': author}
         new_pos = match.end()
-        filename = '' ; num_paths = 0 ; section_indices = []
+        filename = '' ; category = 'Track' ; num_paths = 0 ; section_refs = []
+        has_main_route = has_clearance_dist = has_manual_junction = has_crossover = has_tunnel_shape = False
         filename_found = num_paths_found = False
         for _ in range(16) :   # hard limit for safety
             # get next token, should be SectionSize or SectionCurve
@@ -301,30 +335,35 @@ def process_tsection_file(ts_file_path) :
                         num_warn += 1
                     else :
                         for idx in str_indices :
-                            section_indices.append(int(idx))
+                            i_idx = int(idx)
+                            section_refs.append(i_idx)
+                            if i_idx in track_sections :
+                                track_sections[i_idx]['FromShapes'].append(shape_idx)
+                            else :
+                                warn(1, 'Warning: Track Section {} referenced in Track Shape {} does not exist'.format(i_idx, shape_idx), '')
                     new_pos += m.end()
             elif m.group(1).lower() == 'mainroute' :
-                # ignore
+                has_main_route = True
                 new_pos += m.end()
                 new_pos += skip_to_end_of_block(shapes_text, new_pos, 20)
             elif m.group(1).lower() == 'clearancedist' :
-                # ignore
+                has_clearance_dist = True
                 new_pos += m.end()
                 new_pos += skip_to_end_of_block(shapes_text, new_pos, 20)
             elif m.group(1).lower() == 'tunnelshape' :
-                # ignore
+                has_tunnel_shape = True
                 new_pos += m.end()
                 new_pos += skip_to_end_of_block(shapes_text, new_pos, 20)
             elif m.group(1).lower() == 'roadshape' :
-                # ignore
+                category = 'Road'
                 new_pos += m.end()
                 new_pos += skip_to_end_of_block(shapes_text, new_pos, 20)
             elif m.group(1).lower() == 'manualjunctionshape':
-                # ignore
+                has_manual_junction = True
                 new_pos += m.end()
                 new_pos += skip_to_end_of_block(shapes_text, new_pos, 20)
             elif m.group(1).lower() == 'crossovershape':
-                # ignore
+                has_crossover = True
                 new_pos += m.end()
                 new_pos += skip_to_end_of_block(shapes_text, new_pos, 20)
             elif m.group(1).lower() == 'xoverpts':
@@ -336,16 +375,58 @@ def process_tsection_file(ts_file_path) :
                 num_warn += 1
                 new_pos += skip_to_end_of_block(shapes_text, new_pos, 20)
                 break
+        # end loop over tokens in TrackShape block
 
         if filename_found :
-            track_shapes[shape_idx]['FileName'] = filename
             num_shapes += 1
+
+            track_type = 'unknown'
+            if has_tunnel_shape : category += '-Tunnel'
+            if has_crossover : track_type = 'Crossing'
+            elif (has_main_route and has_clearance_dist) or has_manual_junction : track_type = 'Junction'
+            elif has_main_route or has_clearance_dist :
+                track_type = 'Junction'
+                warn(1, 'Warning: Junction from TrackShape {} may have missing options; mr = {}, hcd = {}'.format(shape_idx, has_main_route, has_clearance_dist), '')
+            else :
+                if len(section_refs) <= 0 :
+                    warn(1, 'Warning: Track Shape {} does not reference any Track Sections'.format(shape_idx), '')
+                elif section_refs[0] not in track_sections :
+                    warn(1, 'Warning: Track Shape {} does not reference any Track Sections'.format(shape_idx), '')
+                else :
+                    track_type = track_sections[section_refs[0]]['Type']
+            if track_type == 'Junction' :
+                num_left = num_right = num_straight = 0
+                for idx in section_refs :
+                    if idx not in track_sections : continue
+                    if track_sections[idx]['Type'] == 'straight' : num_straight += 1  # junctions must have at least one curve
+                    elif track_sections[idx]['Type'] == 'curved-left' : num_left += 1
+                    elif track_sections[idx]['Type'] == 'curved-right' : num_right += 1
+                if num_left <= 0 and num_right <= 0 : track_type = 'straight'
+                if num_straight <= 0 : track_type += '-curved'
+                elif num_left > num_right : track_type += '-left'
+                elif num_right > num_left : track_type += '-right'
+
+            track_shapes[shape_idx]['FileName'] = filename
+            track_shapes[shape_idx]['Category'] = category
+            track_shapes[shape_idx]['Type'] = track_type
             if num_paths_found:
                 track_shapes[shape_idx]['NumPaths'] = num_paths
-            track_shapes[shape_idx]['SectionIdx'] = []
-            for idx in section_indices :
-                track_shapes[shape_idx]['SectionIdx'].append(idx)
-            shape_files[filename] = section_indices
+            track_shapes[shape_idx]['SectionIndices'] = []
+            for idx in section_refs :
+                track_shapes[shape_idx]['SectionIndices'].append(idx)
+
+            if filename not in shape_files :
+                shape_files[filename] = {}
+                shape_files[filename]['Category'] = category
+                shape_files[filename]['Type'] = track_type
+                shape_files[filename]['NumTracks'] = num_paths
+                shape_files[filename]['ShapeIndices'] = [shape_idx]
+                shape_files[filename]['SectionIndices'] = section_refs
+            else :
+                warn(2, 'Warning: filename {} from TrackShape {} already in list'.format(filename, shape_idx), '')
+                num_file_warn += 1
+                shape_files[filename]['ShapeIndices'].append(shape_idx)
+                shape_files[filename]['SectionIndices'].extend(section_refs)
         else :
             warn(1, 'Warning: Filename not found in Track Shape with index {}'.format(shape_idx), '')
             num_warn += 1
@@ -353,8 +434,11 @@ def process_tsection_file(ts_file_path) :
     # end for each match
 
     print('Info: {} shapes found, {} shapes parsed; {} warnings'.format(num_shapes, len(track_shapes), num_warn), file=sys.stderr)
-    print('Info: {} shape files found'.format(len(shape_files)), file=sys.stderr)
+    print('Info: {} shape files found, {} reused'.format(len(shape_files), num_file_warn), file=sys.stderr)
 
+    for section_idx in track_sections :
+        if len(track_sections[section_idx]['FromShapes']) <= 0 :
+            warn(1, 'Warning: Track Section {} ({}) is not referenced by any Track Shape'.format(section_idx, track_sections[section_idx]['Type']), '')
     return
 # end process_tsection_file()
 
@@ -364,17 +448,19 @@ def process_tsection_file(ts_file_path) :
 
 parser = argparse.ArgumentParser(description='''List the track sections installed in GLOBAL.
 Scans the specified tsection.dat and checks if the referenced shape file exists.
-Outputs a line for each track section that has a shape.
+Outputs a line for each track section, keyed by the shape file name.
 Does _not_ consider track in the route specific tsection.dat.''')
 parser.add_argument('tsection_file_path', type=pathlib.Path, help='The path to the tsection.dat file.')
 parser.add_argument('global_dir_path', nargs='?', type=pathlib.Path, help='Optional. The path to the GLOBAL folder.')
 parser.add_argument('shapes_dir_path', nargs='?', type=pathlib.Path, help='Optional. The path to the SHAPES folder.')
+parser.add_argument('-i', '--installed', action='store_true', help='List only tracks that are installed in GLOBAL/SHAPES.')
 parser.add_argument('-v', '--verbose', action='count', default=0, help='Be more verbose. Option may be repeated.')
 parser.add_argument('-d', '--dump', action='store_true', help='Dump intermediate results, like the list of track shapes, etc.')
 args = parser.parse_args()
 tsection_file_path = args.tsection_file_path
 global_dir_path = args.global_dir_path
 shapes_dir_path = args.shapes_dir_path
+list_all = not args.installed
 verbose = args.verbose
 dump = args.dump
 
@@ -396,7 +482,25 @@ if not shapes_dir_path.is_dir() :
 
 process_tsection_file(tsection_file_path)
 
+num_installed = 0
+print('FileName,Category,Type,NumTracks,ShapeIndices,SectionIndices,Author,SectionIdx,Type,Length [m],Length [ft],Radius [m],Radius [ft],Angle [°],Skew [°],Gauge [m],Gauge [ft], SectionIdx2,...')
+for filename in shape_files :
+    filepath = pathlib.Path(shapes_dir_path / filename)
+    category = shape_files[filename]['Category']
+    if list_all or filepath.is_file() :
+        num_installed += 1
+        first_shape_idx = shape_files[filename]['ShapeIndices'][0]
+        first_section_index = shape_files[filename]['ShapeIndices'][0]
+        shape_indices = sorted((dict.fromkeys(shape_files[filename]['ShapeIndices'])).keys())  # unique and sorted
+        section_indices = sorted((dict.fromkeys(shape_files[filename]['SectionIndices'])).keys())  # unique and sorted
+        author = expanded_shape_authors[first_shape_idx]
+        out_line = '"{}","{}","{}","{}","{}","{}","{}",'.format(filename, category, shape_files[filename]['Type'], shape_files[filename]['NumTracks'], ';'.join(map(str, shape_indices)), ';'.join(map(str, section_indices)), author)
+        for idx in section_indices :
+            if idx not in track_sections : continue
+            section = track_sections[idx]
+            out_line += '"{}","{}","{}","{}","{}","{}","{}","{}","{}","{}",'.format(idx, section['Type'], section['Length [m]'], section['Length [ft]'], section['Radius [m]'], section['Radius [ft]'], section['Angle [°]'], section['Skew [°]'], section['Gauge [m]'], section['Gauge [ft]'])
+        print( out_line)
 
-
+print('Info: {} files installed.'.format(num_installed), file=sys.stderr)
 
 exit(0)
