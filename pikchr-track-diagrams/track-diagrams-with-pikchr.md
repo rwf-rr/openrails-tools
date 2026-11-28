@@ -138,7 +138,7 @@ P: (-2.495,30); arcLine( P, 170, 164.0639 , 10, color magenta)
 ```
 Next is the diagram rendered. I rotated the image 90 degrees to better fit into this document.
 
-![Rendered Image for A1tSglSlip10d](./images/A1tSglSlip10d.gif)
+![Rendered Image for A1tSglSlip10d](./images/A1tSglSlip10d.GIF)
 
 And an image of the actual shape file:
 
@@ -273,7 +273,7 @@ line <-> dashed color red from last.end go 0.2 heading -10
 ```
 Next is the diagram rendered. I rotated the image 90 degrees to better fit into this document.
 
-![Rendered Image](./images/A1tDblSlip10d.gif)
+![Rendered Image](./images/A1tDblSlip10d.GIF)
 
 And an image of the actual shape file:
 
