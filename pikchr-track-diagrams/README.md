@@ -4,7 +4,7 @@
 GitHub does not support _pikchr_. 
 However, there is an [online version](https://pikchr.org/home/pikchrshow) that renders diagram scripts.
 
-## Draw Track Diagrams from TrackShapes
+## Draw Diagrams from TrackShapes
 
 _pikchr_ has a syntax that is somewhat close to MSTS (and Open Rails) track definitions.
 Thus it can be used to draw logical diagrams of complex track shapes.

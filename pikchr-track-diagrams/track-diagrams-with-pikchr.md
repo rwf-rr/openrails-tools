@@ -1,4 +1,4 @@
-# Track Diagrams with pikchr
+# Track Shape Diagrams with pikchr
 
 [pikchr](https://pikchr.org/home/doc/trunk/homepage.md) is a text-based drawing tool, intended to embed drawings in web pages.
 It has a syntax that is somewhat close to MSTS (and Open Rails) track definitions.
